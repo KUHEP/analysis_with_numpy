@@ -74,6 +74,9 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
 
             hist[sample][tree_name]['RISR_PTISR'] = rt.TH2D('RISR_PTISR_'+sample+'_'+tree_name, 'RISR_PTISR', 500, 0, 1, 500, 0, 1000)
 
+            hist[sample][tree_name]['N_PT_medium_jet'] = rt.TH2D('N_PT_medium_jet_'+sample+'_'+tree_name, 'N pt leading medium b jets', 20, 0, 20, 500, 0, 1000)
+            hist[sample][tree_name]['N_PT_lep'] = rt.TH2D('N_PT_lep_'+sample+'_'+tree_name, 'N pt leptons', 20, 0, 20, 500, 0, 1000)
+
             hist[sample][tree_name]['RISR_PTCM'] = rt.TH2D('RISR_PTCM_'+sample+'_'+tree_name, 'RISR_PTCM', 500, 0, 1, 500, 0, 1000)
 
             hist[sample][tree_name]['dphi_PTCM_div_PTISR'] = rt.TH2D('dphi_PTCM_div_PTISR_'+sample+'_'+tree_name, 'dphi_PTCM_div_PTISR', 500, 0, np.pi, 500, 0, 1)
@@ -111,13 +114,12 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
                 eta_jet = np.array(sample_array[sample][tree_name]['Eta_jet'])
                 base_isr_index_jet = np.array(sample_array[sample][tree_name]['index_jet_ISR'])
                 base_s_index_jet = np.array(sample_array[sample][tree_name]['index_jet_S'])
-                bjet_tag = np.array(sample_array[sample][tree_name]['Btag_ID_jet'])
+                bjet_tag = np.array(sample_array[sample][tree_name]['Btag_jet'])
 
                 pt_lep = np.array(sample_array[sample][tree_name]['PT_lep'])
                 eta_lep = np.array(sample_array[sample][tree_name]['Eta_lep'])
                 base_isr_index_lep = np.array(sample_array[sample][tree_name]['index_lep_ISR'])
                 base_s_index_lep = np.array(sample_array[sample][tree_name]['index_lep_S'])
-
                 met = np.array(sample_array[sample][tree_name]['MET'])
                 base_risr = np.array(sample_array[sample][tree_name]['RISR'])
                 base_ptisr = np.array(sample_array[sample][tree_name]['PTISR'])
@@ -154,14 +156,14 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
                 test_medium = [3,4]
                 test_tight = [4]
 
-                risr = risr[:, 0]
-                ptisr = ptisr[:, 0]
-                ptcm = ptcm[:, 0]
-                isr_index_jet = isr_index_jet[:, 0]
-                s_index_jet = s_index_jet[:, 0]
-                isr_index_lep = isr_index_lep[:, 0]
-                s_index_lep = s_index_lep[:, 0]
-                dphi = dphi[:, 0]
+                risr = risr[:, 2]
+                ptisr = ptisr[:, 2]
+                ptcm = ptcm[:, 2]
+                isr_index_jet = isr_index_jet[:, 2]
+                s_index_jet = s_index_jet[:, 2]
+                isr_index_lep = isr_index_lep[:, 2]
+                s_index_lep = s_index_lep[:, 2]
+                dphi = dphi[:, 2]
 
                 # risr_lepV_jetI = risr[:,0]
                 # risr_lepV_jetA = risr[:,1]
@@ -169,9 +171,9 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
                 
                 print '\ncreating masks and weights'
                 print '-> bjet masks'
-                loose_mask = np.isin(bjet_tag, test_loose)
-                medium_mask = np.isin(bjet_tag, test_medium)
-                tight_mask = np.isin(bjet_tag, test_tight)
+                loose_mask = bjet_tag > 0.5426
+                medium_mask = bjet_tag > 0.8484
+                tight_mask = bjet_tag > 0.9535
 
                 print '-> S bjet masks'
                 loose_s_mask = np.array([mask[index] for mask, index in zip(loose_mask, s_index_jet)])
@@ -281,13 +283,15 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
                 print '-> Event variables' 
                 ptcm_div_ptisr = np.divide(ptcm, ptisr)
 
+                n_medium_jet = np.array([len(jets[mask]) for jets, mask in zip(pt_jet, medium_mask)])
                 print '-> lead jet pt'
                 pt_lead_jet = [np.amax(jets[~np.isnan(jets)]) for jets in pt_jet if jets[~np.isnan(jets)].size != 0]
                 lead_weight = [w for w, jets in zip(weight, pt_jet) if jets[~np.isnan(jets)].size != 0]
                 loose_pt_lead_jet = [np.amax(jets[mask]) for jets, mask in zip(pt_jet, loose_mask) if jets[mask].size != 0]
-                medium_pt_lead_jet = [np.amax(jets[mask]) for jets, mask in zip(pt_jet, medium_mask) if jets[mask].size != 0]
+                medium_pt_lead_jet = [np.amax(jets[mask]) if jets[mask].size!=0 else 0. for jets, mask in zip(pt_jet, medium_mask)]
                 tight_pt_lead_jet = [np.amax(jets[mask]) for jets, mask in zip(pt_jet, tight_mask) if jets[mask].size != 0]
 
+                pt_lead_lep = [np.amax(leps[~np.isnan(leps)]) for leps in pt_lep if leps[~np.isnan(leps)].size != 0]
                 print '-> jet weights'
                 loose_weight = weight[is_loose]
                 medium_weight = weight[is_medium]
@@ -363,7 +367,7 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
 
                 rnp.fill_hist(hist[sample][tree_name]['PT_lead_jet'], pt_lead_jet, lead_weight)
                 rnp.fill_hist(hist[sample][tree_name]['loose_PT_lead_jet'], loose_pt_lead_jet, loose_weight)
-                rnp.fill_hist(hist[sample][tree_name]['medium_PT_lead_jet'], medium_pt_lead_jet, medium_weight)
+                rnp.fill_hist(hist[sample][tree_name]['medium_PT_lead_jet'], medium_pt_lead_jet, weight)
                 rnp.fill_hist(hist[sample][tree_name]['tight_PT_lead_jet'], tight_pt_lead_jet, tight_weight)
 
                 rnp.fill_hist(hist[sample][tree_name]['N_S_jet'], n_s_jet, weight)
@@ -394,6 +398,8 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
                 rnp.fill_hist(hist[sample][tree_name]['dphi_PTCM_div_PTISR'], np.swapaxes([div_dphi,ptcm_div_ptisr],0,1), div_weight)
 
                 rnp.fill_hist(hist[sample][tree_name]['RISR_PTCM'], np.swapaxes([risr,ptcm],0,1), weight)
+                rnp.fill_hist(hist[sample][tree_name]['N_PT_medium_jet'], np.swapaxes([n_medium_jet ,medium_pt_lead_jet],0,1), weight)
+                rnp.fill_hist(hist[sample][tree_name]['N_PT_lep'], np.swapaxes([lep_len ,pt_lead_lep],0,1), weight)
 
                 rnp.fill_hist(hist[sample][tree_name]['RISR_PTISR'], np.swapaxes([risr,ptisr],0,1), weight)
 
@@ -417,35 +423,40 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
 if __name__ == "__main__":
 
     signals = { 
-    'SMS-T2bW' : ['/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/SMS-T2bW/root/SMS-T2bW_TuneCUETP8M1_13TeV-madgraphMLM-pythia8SMS-T2bW']
+    #'SMS-T2bW' : ['/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/SMS-T2bW_v2/root/SMS-T2bW_TuneCUETP8M1_13TeV-madgraphMLM-pythia8_TuneCUETP']
+    'SMS-T2-4bd_420' : [
+                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/SMS-T2-4bd/SMS-T2-4bd_genMET-80_mStop-500_mLSP-420_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17',
+],
+    'SMS-T2-4bd_490' : [
+                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/SMS-T2-4bd/SMS-T2-4bd_genMET-80_mStop-500_mLSP-490_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17',
+],
               }
     backgrounds = {
-    'TTJets' : ['/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ttbar_2016/root/TTJets_TuneCUETP8M2T4_13TeV-amcatnloFXFX-pythia8ttbar_2016'],
-    'WJets' : [
-              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu/root/WJetsToLNu_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8WJetsToLNu',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_70to100/root/WJetsToLNu_HT-70To100_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_70to100',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_100to200/root/WJetsToLNu_HT-100To200_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_100to200',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_200to400/root/WJetsToLNu_HT-200To400_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_200to400',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_400to600/root/WJetsToLNu_HT-400To600_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_400to600',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_600to800/root/WJetsToLNu_HT-600To800_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_600to800',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_800to1200/root/WJetsToLNu_HT-800To1200_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_800to1200',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_1200to2500/root/WJetsToLNu_HT-1200To2500_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_1200to2500',
-              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/WJetsToLNu_2500toInf/root/WJetsToLNu_HT-2500ToInf_TuneCUETP8M1_13TeV-madgraphMLM-pythia8WJetsToLNu_2500toInf'
-              ],
+    'TTJets' : ['/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ttbar_2017/TTJets_TuneCP5_13TeV-madgraphMLM-pythia8_TuneCP5'],
+    'ST' : [
+              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ST_2017/ST_s-channel_4f_leptonDecays_TuneCP5_13TeV-amcatnlo-pythia8_Fall17',
+#              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ST_2017/ST_t-channel_antitop_5f_TuneCP5_PSweights_13TeV-powheg-pythia8_Fall17',
+#              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ST_2017/ST_t-channel_top_5f_TuneCP5_13TeV-powheg-pythia8_Fall17',
+              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ST_2017/ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_Fall17',
+              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ST_2017/ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_Fall17',
+           ],
+    'WJets_2017' : [
+                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/Wjets_2017/WJetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17',
+],
                   }
-    variables = ['MET', 'PT_jet', 'Eta_jet', 'index_jet_ISR', 'index_jet_S', 'Btag_ID_jet', 'PT_lep', 'Eta_lep', 'index_lep_ISR', 'index_lep_S', 'RISR', 'PTISR', 'PTCM', 'dphiCMI', 'weight']
+    variables = ['MET', 'PT_jet', 'Eta_jet', 'index_jet_ISR', 'index_jet_S', 'Btag_jet', 'PT_lep', 'Eta_lep', 'index_lep_ISR', 'index_lep_S', 'RISR', 'PTISR', 'PTCM', 'dphiCMI', 'weight']
 
     start_b = time.time()    
     background_list = process_the_samples(backgrounds, None, None)
     hist_background = get_histograms(background_list, variables, None)
 
-    write_hists_to_file(hist_background, './output_background_cat1_hists.root') 
+    write_hists_to_file(hist_background, './output_background_cat3_pt_hists.root') 
     stop_b = time.time()
 
     signal_list = process_the_samples(signals, None, None)
     hist_signal = get_histograms(signal_list, variables, None)
 
-    write_hists_to_file(hist_signal, './output_signal_cat1_hists.root')  
+    write_hists_to_file(hist_signal, './output_signal_cat3_pt_hists.root')  
     stop_s = time.time()
 
     print "background: ", stop_b - start_b

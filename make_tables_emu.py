@@ -1,0 +1,584 @@
+#!/usr/bin/env python
+
+"""
+New thing to try out, doing analysis with numpy, converting back to ROOT to do histogramming
+Creator: Erich Schmitz
+Date: Feb 22, 2019
+"""
+
+import ROOT as rt
+import numpy as np
+import root_numpy as rnp
+import numpy.lib.recfunctions as rfc
+import os
+from file_table_functions import *
+from collections import OrderedDict
+import time
+rt.gROOT.SetBatch()
+rt.TH1.AddDirectory(rt.kFALSE)
+
+########## get_histograms function template ############
+
+########################################################
+
+
+def make_tables(list_of_files_, variable_list_, cuts_to_apply_=None):
+    
+    hist = OrderedDict()
+    reference = [
+            # s-style regions
+            'total',
+            '2l',
+            '1l',
+            '1_el',
+            '1_mu',
+            '1l_0sb',
+            '1l_ge1st',
+            '1_el_ge1st',
+            '1_mu_ge1st',
+            '1l_1sb',
+            '1l_ge1sv',
+            '1l_0sj',
+            '1l_ge1sj',
+            '1l_0st',
+
+            # isr-style regions
+            '2l_0isrb',
+            '1l_0isrb',
+            '1_el_0isrb',
+            '1_mu_0isrb',
+            '1l_ge1isrb',
+            '1l_ge1isrt',
+            '1l_1isrb',
+            '1l_0isrb_ge1sj_mscut1',
+            '1l_0isrb_ge1sj_mscut2',
+            '1_el_0isrb_ge1sj',
+            '1_mu_0isrb_ge1sj',
+            '1l_0isrb_ge1sj',
+            '1l_0isrb_ge1st_mscut1',
+            '1l_0isrb_ge1st_mscut2',
+            '1l_0isrb_ge1st_mscut3',
+            '1l_0isrb_ge1st',
+            '1_el_0isrb_ge1st',
+            '1_mu_0isrb_ge1st',
+
+            # weighted entries
+            # s-style regions
+            'total_w',
+            '2l_w',
+            '1l_w',
+            '1_el_w',
+            '1_mu_w',
+            '1l_0sb_w',
+            '1l_ge1st_w',
+            '1_el_ge1st_w',
+            '1_mu_ge1st_w',
+            '1l_1sb_w',
+            '1l_ge1sv_w',
+            '1l_0sj_w',
+            '1l_ge1sj_w',
+            '1l_0st_w',
+
+            # isr-style regions
+            '2l_0isrb_w',
+            '1l_0isrb_w',
+            '1_el_0isrb_w',
+            '1_mu_0isrb_w',
+            '1l_ge1isrb_w',
+            '1l_ge1isrt_w',
+            '1l_1isrb_w',
+            '1l_0isrb_ge1sj_mscut1_w',
+            '1l_0isrb_ge1sj_mscut2_w',
+            '1_el_0isrb_ge1sj_w',
+            '1_mu_0isrb_ge1sj_w',
+            '1l_0isrb_ge1sj_w',
+            '1l_0isrb_ge1st_mscut1_w',
+            '1l_0isrb_ge1st_mscut2_w',
+            '1l_0isrb_ge1st_mscut3_w',
+            '1l_0isrb_ge1st_w',
+            '1_el_0isrb_ge1st_w',
+            '1_mu_0isrb_ge1st_w',
+    ]
+
+    for sample in list_of_files_:
+        hist[sample] = OrderedDict()
+        for tree_name in list_of_files_[sample]['trees']:
+            print '\nReserving Tables for:', sample, tree_name 
+            # Reserve tables
+
+            n_regions = len(reference)
+            hist[sample][tree_name] = np.zeros(n_regions, dtype=np.float)
+
+        for ifile, in_file in enumerate(list_of_files_[sample]['files']):
+            for tree_name in list_of_files_[sample]['trees']:
+                sample_array = get_tree_info_singular(sample, in_file, tree_name, variable_list_, cuts_to_apply_)
+                if sample_array is None: continue
+
+                print '\nGetting Histograms for:', sample, tree_name, in_file
+                print 'file: ', ifile+1, ' / ', len(list_of_files_[sample]['files'])
+
+                risr = np.array(sample_array['RISR'])
+                ptisr = np.array(sample_array['PTISR'])
+                ms = np.array(sample_array['MS'])
+                njet_s = np.array(sample_array['Njet_S'])
+                njet_isr = np.array(sample_array['Njet_ISR'])
+                nbjet_s = np.array(sample_array['Nbjet_S'])
+                nbjet_isr = np.array(sample_array['Nbjet_ISR'])
+                nsv_s = np.array(sample_array['NSV_S'])
+                nsv_isr = np.array(sample_array['NSV_ISR'])
+
+#                pt_jet = np.array(sample_array['PT_jet'])
+                pt_sv = np.array(sample_array['PT_SV'])
+#                isr_index_jet = np.array(sample_array['index_jet_ISR'])
+#                s_index_jet = np.array(sample_array['index_jet_S'])
+                isr_index_sv = np.array(sample_array['index_SV_ISR'])
+                s_index_sv = np.array(sample_array['index_SV_S'])
+#                bjet_tag = np.array(sample_array['Btag_jet'])
+
+                pt_lep = np.array(sample_array['PT_lep'])
+                mini_lep = np.array(sample_array['MiniIso_lep'])
+                id_lep = np.array(sample_array['ID_lep'])
+                pdgid_lep = np.array(sample_array['PDGID_lep'])
+
+                risr = np.array([entry[:2] for entry in risr])
+                ptisr = np.array([entry[:2] for entry in ptisr])
+                ms = np.array([entry[:2] for entry in ms])
+                njet_s = np.array([entry[:2] for entry in njet_s])
+                njet_isr = np.array([entry[:2] for entry in njet_isr])
+                nbjet_s = np.array([entry[:2] for entry in nbjet_s])
+                nbjet_isr = np.array([entry[:2] for entry in nbjet_isr])
+                nsv_s = np.array([entry[:2] for entry in nsv_s])
+                nsv_isr = np.array([entry[:2] for entry in nsv_isr])
+                #ptcm = np.array([entry[:2] for entry in ptcm])
+                #dphi = np.array([entry[:2] for entry in dphi])
+#                isr_index_jet = np.array([entry[:2] for entry in isr_index_jet])
+#                s_index_jet = np.array([entry[:2] for entry in s_index_jet])
+                isr_index_sv = np.array([entry[:2] for entry in isr_index_sv])
+                s_index_sv = np.array([entry[:2] for entry in s_index_sv])
+
+                risr = risr[:, 1]
+                ptisr = ptisr[:, 1]
+                ms = ms[:, 1]
+                njet_s = njet_s[:, 1]
+                njet_isr = njet_isr[:, 1]
+                nbjet_s = nbjet_s[:, 1]
+                nbjet_isr = nbjet_isr[:, 1]
+                nsv_s = nsv_s[:, 1]
+                nsv_isr = nsv_isr[:, 1]
+
+                #ptcm = ptcm[:, 2]
+                #dphi = dphi[:, 2]
+#                isr_index_jet = isr_index_jet[:, 1]
+#                s_index_jet = s_index_jet[:, 1]
+                isr_index_sv = isr_index_sv[:, 1]
+                s_index_sv = s_index_sv[:, 1]
+                #isr_index_lep = isr_index_lep[:, 2]
+                #s_index_lep = s_index_lep[:, 2]
+
+                #risr = risr[:, 1]
+                #ptisr = ptisr[:, 1]
+                #ptcm = ptcm[:, 1]
+                #isr_index_jet = isr_index_jet[:, 1]
+                #s_index_jet = s_index_jet[:, 1]
+                #isr_index_lep = isr_index_lep[:, 1]
+                #s_index_lep = s_index_lep[:, 1]
+                #dphi = dphi[:, 1]
+
+                # risr_lepV_jetI = risr[:,0]
+                # risr_lepV_jetA = risr[:,1]
+                # risr_lepA_jetA = risr[:,2]
+
+                met = np.array(sample_array['MET'])
+                weight = np.array(sample_array['weight'])
+#                weight = 137. * weight
+
+#                if 'SMS-T2-4bd_490' in sample:
+#                    weight = np.array([(137000.*0.51848) / 1207007. for w in weight])
+
+#                len_jet = np.array([len(jets) for jets in pt_jet])
+#                max_n_jets = np.amax(len_jet)
+                len_sv = np.array([len(sv) for sv in pt_sv])
+                max_n_sv = np.amax(len_sv)
+
+                #pt_jet = np.array([np.pad(jets, (0, max_n_jets - len(jets)), 'constant', constant_values=np.nan) for jets in pt_jet]) 
+                #pt_sv = np.array([np.pad(sv, (0, max_n_sv - len(sv)), 'constant', constant_values=np.nan) for sv in pt_sv]) 
+                #bjet_tag = np.array([np.pad(jets, (0, max_n_jets - len(jets)), 'constant', constant_values=np.nan) for jets in bjet_tag]) 
+#                pt_s_jet = np.array([jets[index] for jets, index in zip(pt_jet, s_index_jet)])
+#                pt_isr_jet = np.array([jets[index] for jets, index in zip(pt_jet, isr_index_jet)])
+                pt_s_sv = np.array([sv[index] for sv, index in zip(pt_sv, s_index_sv)])
+                pt_isr_sv = np.array([sv[index] for sv, index in zip(pt_sv, isr_index_sv)])
+               
+
+                ################  Choosing Lepton ID #####################
+                ################        Medium       #####################
+                pt_lep = np.array([pt[lid>=3] for pt, lid in zip(pt_lep, id_lep)])
+                mini_lep = np.array([mini[lid>=3] for mini, lid in zip(mini_lep, id_lep)])
+                pdgid_lep = np.array([pt[lid>=3] for pt, lid in zip(pdgid_lep, id_lep)])
+                ################        Tight        #####################
+                #pt_lep = np.array([pt[lid>=4] for pt, lid in zip(pt_lep, id_lep)])
+                #mini_lep = np.array([mini[lid>=4] for mini, lid in zip(mini_lep, id_lep)])
+                ##########################################################
+ 
+                len_lep = np.array([len(leps) for leps in pt_lep])
+                max_n_leps = np.amax(len_lep)
+                #pt_lep = np.array([np.pad(leps, (0, max_n_leps - len(leps)), 'constant', constant_values=np.nan) for leps in pt_lep]) 
+                #mini_lep = np.array([np.pad(leps, (0, max_n_leps - len(leps)), 'constant', constant_values=np.nan) for leps in mini_lep]) 
+                #pdgid_lep = np.array([np.pad(leps, (0, max_n_leps - len(leps)), 'constant', constant_values=np.nan) for leps in pdgid_lep]) 
+
+                is_mu = np.array([ np.abs(pdg) == 13 for pdg in pdgid_lep])
+                is_el = np.array([ np.abs(pdg) == 11 for pdg in pdgid_lep])
+                
+                pt_mu = np.array([ pt[mu] for pt, mu in zip(pt_lep, is_mu)])
+                pt_el = np.array([ pt[el] for pt, el in zip(pt_lep, is_el)])
+
+                mini_mu = np.array([ mini[mu] for mini, mu in zip(mini_lep, is_mu)])
+                mini_el = np.array([ mini[el] for mini, el in zip(mini_lep, is_el)])
+
+                pt_35_lep = np.array([ pt[mini<0.1] for pt, mini in zip(pt_lep, mini_lep)])
+                pt_35_mu = np.array([ pt[mini<0.1] for pt, mini in zip(pt_mu, mini_mu)])
+                pt_5_el = np.array([ pt[mini<0.1] for pt, mini in zip(pt_el, mini_el)])
+
+                pt_less_12_lep = np.array([ pt[np.logical_and(pt<12, mini<0.1)] for pt, mini in zip(pt_lep, mini_lep)])
+
+                
+                print '\ncreating masks and weights'
+                print '-> bjet masks'
+#                medium_s_mask = np.array([tag[index] > 0.8484 for tag, index in zip(bjet_tag, s_index_jet)])
+#                medium_isr_mask = np.array([tag[index] > 0.8484 for tag, index in zip(bjet_tag, isr_index_jet)])
+#                medium_s_mask = np.array([tag[index] > 0.4941 for tag, index in zip(bjet_tag, s_index_jet)])
+#                medium_isr_mask = np.array([tag[index] > 0.4941 for tag, index in zip(bjet_tag, isr_index_jet)])
+#                medium_s_mask = np.array([tag[index] > 0.3033 for tag, index in zip(bjet_tag, s_index_jet)])
+#                medium_isr_mask = np.array([tag[index] > 0.3033 for tag, index in zip(bjet_tag, isr_index_jet)])
+              
+
+ 
+#                has_0_s_jets = np.array([True if len(jet) < 1 else False for jet in s_index_jet])
+#                has_1_s_jets = np.array([True if len(jet) == 1 else False for jet in s_index_jet])
+#                has_greateq_1_s_jets = np.array([True if len(jet) >= 1 else False for jet in s_index_jet])
+#                has_0_s_sv = np.array([True if len(sv) < 1 else False for sv in s_index_sv])
+#                has_1_s_sv = np.array([True if len(sv) == 1 else False for sv in s_index_sv])
+#                has_greateq_1sv = np.array([True if len(sv) >= 1 else False for sv in s_index_sv])
+#                has_greateq_1st = np.array([True if (len(sv)+ jet >= 1 else False for sv, jet in zip(s_index_sv, Njet_S)])
+                  
+#                has_0_isr_jets = np.array([True if len(jet) < 1 else False for jet in isr_index_jet])
+#                has_1_isr_jets = np.array([True if len(jet) == 1 else False for jet in isr_index_jet])
+#                has_greateq_1_isr_jets = np.array([True if len(jet) >= 1 else False for jet in isr_index_jet])
+#                has_0_isr_sv = np.array([True if len(sv) < 1 else False for sv in isr_index_sv])
+#                has_1_isr_sv = np.array([True if len(sv) == 1 else False for sv in isr_index_sv])
+#                has_greateq_1_isr_sv = np.array([True if len(sv) >= 1 else False for sv in isr_index_sv])
+#                has_greateq_1_isr_t = np.array([True if (len(sv)+len(mask[mask])) >= 1 else False for sv, mask in zip(isr_index_sv, medium_isr_mask)])
+#                has_2_medium = np.array([True if len(mask[mask]) >= 2 else False for mask in medium_s_mask])
+#                has_2_isr_medium = np.array([True if len(mask[mask]) >= 2 else False for mask in medium_isr_mask])
+#                has_1_medium = np.array([True if len(mask[mask]) == 1 else False for mask in medium_s_mask])
+
+#                has_1_less_pt20_medium = np.array([True if len(event[np.logical_and(pt<20, event)]) == 1 else False for event, pt in zip(medium_s_mask, pt_s_jet)])
+#                has_1_great_pt20_medium = np.array([True if len(event[np.logical_and(pt>20, event)]) == 1 else False for event, pt in zip(medium_s_mask, pt_s_jet)])
+
+#                has_0_isr_medium = np.array([True if len(mask[mask]) == 0 else False for mask in medium_isr_mask])
+#                has_1_isr_medium = np.array([True if len(mask[mask]) == 1 else False for mask in medium_isr_mask])
+#                has_ge1_isr_medium = np.array([True if len(mask[mask]) >= 1 else False for mask in medium_isr_mask])
+#                has_ge2_isr_medium = np.array([True if len(mask[mask]) >= 2 else False for mask in medium_isr_mask])
+#                has_1_great_pt20_isr_medium = np.array([True if len(event[np.logical_and(pt>20, event)]) == 1 else False for event, pt in zip(medium_isr_mask, pt_isr_jet)])
+#                has_1_less_pt20_isr_medium = np.array([True if len(event[np.logical_and(pt<20, event)]) == 1 else False for event, pt in zip(medium_isr_mask, pt_isr_jet)])
+#                has_no_great_pt20_isr_medium = np.array([True if len(event[np.logical_and(pt>20, event)]) == 0 else False for event, pt in zip(medium_isr_mask, pt_isr_jet)])
+#                has_no_less_pt20_isr_medium = np.array([True if len(event[np.logical_and(pt<20, event)]) == 0 else False for event, pt in zip(medium_isr_mask, pt_isr_jet)])
+
+#                has_no_medium = np.array([False if np.any(mask) else True for mask in medium_s_mask])
+#                has_no_isr_medium = np.array([False if np.any(mask) else True for mask in medium_isr_mask])
+
+
+                print '-> lepton masks'
+                only_2_lep = np.array([True if len(lep) == 2 else False for lep in pt_35_lep])
+                only_1_lep = np.array([True if len(lep) == 1 and not two_leps else False for lep, two_leps in zip(pt_35_lep, only_2_lep)])
+                only_1_el = np.array([True if len(lep) == 1 and not two_leps and not np.any(mu) else False for lep, two_leps, mu in zip(pt_5_el, only_2_lep, pt_35_mu)])
+                only_1_mu = np.array([True if len(lep) == 1 and not two_leps and not np.any(el) else False for lep, two_leps, el in zip(pt_35_mu, only_2_lep, pt_5_el)])
+                only_1_less_pt12_lep = np.array([True if len(lep) == 1 and not two_leps else False for lep, two_leps in zip(pt_less_12_lep, only_2_lep)])
+
+
+                met_200 = met > 200
+
+                risr_0p8 = risr > 0.80
+
+                ptisr_200 = ptisr > 200
+
+                has_mscut1 = ms < 80.
+                has_mscut2a = ms > 80.
+                has_mscut2b = ms < 120.
+                has_mscut2 = np.all([has_mscut2a, has_mscut2b], axis=0)
+                has_mscut3 = ms > 120.
+
+
+                print 'incrementing tables'
+                two_l = np.all([met_200, risr_0p8, ptisr_200, only_2_lep], axis=0)
+#                two_l_0sb = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_no_medium], axis=0)
+#                two_l_1sv = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_1_s_sv], axis=0)
+#                two_l_1sb = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_1_medium], axis=0)
+#                two_l_0sv = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_0_s_sv], axis=0)
+#                two_l_0sj = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_0_s_jets], axis=0)
+#                two_l_1sj = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_1_s_jets], axis=0)
+#                two_l_greateq_1st = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_greateq_1st], axis=0)
+#                two_l_greateq_1sj = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_greateq_1_s_jets], axis=0)
+                one_l = np.all([met_200, risr_0p8, ptisr_200, only_1_lep], axis=0)
+                one_el = np.all([met_200, risr_0p8, ptisr_200, only_1_el], axis=0)
+                one_mu = np.all([met_200, risr_0p8, ptisr_200, only_1_mu], axis=0)
+                has_no_medium = nbjet_s < 1
+                one_0sb = np.all([met_200, risr_0p8, ptisr_200, only_1_less_pt12_lep, has_no_medium], axis=0)
+                has_greateq_1st = njet_s + nsv_s >= 1
+                one_l_greateq_1st = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_greateq_1st], axis=0)
+                one_el_greateq_1st = np.all([met_200, risr_0p8, ptisr_200, only_1_el, has_greateq_1st], axis=0)
+                one_mu_greateq_1st = np.all([met_200, risr_0p8, ptisr_200, only_1_mu, has_greateq_1st], axis=0)
+                has_1_medium = nbjet_s == 1
+                one_1sb = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_1_medium], axis=0)
+                has_greateq_1sv = nsv_s >= 1
+                one_ge1sv = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_greateq_1sv], axis=0)
+                has_0_s_jets = njet_s < 1
+                has_greateq_1_s_jets = njet_s >= 1
+                one_0sj = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_s_jets], axis=0)
+                one_ge1sj = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_greateq_1_s_jets], axis=0)
+                has_0_s_sv = nsv_s < 1
+                one_l_0st = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_s_jets, has_0_s_sv], axis=0)
+                has_0_isr_medium = nbjet_isr < 1
+                has_ge1_isr_medium = nbjet_isr >= 1
+                has_1_isr_medium = nbjet_isr == 1
+                has_greateq_1_isr_t = njet_isr + nsv_isr >= 1
+                two_l_0isrb = np.all([met_200, risr_0p8, ptisr_200, only_2_lep, has_0_isr_medium], axis=0)
+
+                one_l_0isrb = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium], axis=0)
+                one_el_0isrb = np.all([met_200, risr_0p8, ptisr_200, only_1_el, has_0_isr_medium], axis=0)
+                one_mu_0isrb = np.all([met_200, risr_0p8, ptisr_200, only_1_mu, has_0_isr_medium], axis=0)
+                one_l_greateq_1isrb = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_ge1_isr_medium], axis=0)
+                one_l_greateq_1isrt = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_greateq_1_isr_t], axis=0)
+                one_l_1isrb = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_1_isr_medium], axis=0)
+                one_l_0isrb_ge1sj_mscut1 = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium, has_greateq_1_s_jets, has_mscut1], axis=0)
+                one_l_0isrb_ge1sj_mscut2 = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium, has_greateq_1_s_jets, has_mscut2], axis=0)
+                one_el_0isrb_ge1sj = np.all([met_200, risr_0p8, ptisr_200, only_1_el, has_0_isr_medium, has_greateq_1_s_jets], axis=0)
+                one_mu_0isrb_ge1sj = np.all([met_200, risr_0p8, ptisr_200, only_1_mu, has_0_isr_medium, has_greateq_1_s_jets], axis=0)
+                one_l_0isrb_ge1sj = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium, has_greateq_1_s_jets], axis=0)
+                one_l_0isrb_ge1st_mscut1 = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium, has_greateq_1st, has_mscut1], axis=0)
+                one_l_0isrb_ge1st_mscut2 = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium, has_greateq_1st, has_mscut2], axis=0)
+                one_l_0isrb_ge1st_mscut3 = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium, has_greateq_1st, has_mscut3], axis=0)
+                one_l_0isrb_ge1st = np.all([met_200, risr_0p8, ptisr_200, only_1_lep, has_0_isr_medium, has_greateq_1st], axis=0)
+                one_el_0isrb_ge1st = np.all([met_200, risr_0p8, ptisr_200, only_1_el, has_0_isr_medium, has_greateq_1st], axis=0)
+                one_mu_0isrb_ge1st = np.all([met_200, risr_0p8, ptisr_200, only_1_mu, has_0_isr_medium, has_greateq_1st], axis=0)
+
+                # s-style regions
+                hist[sample][tree_name][reference.index('total')] += len(met)
+                hist[sample][tree_name][reference.index('2l')] += len(met[two_l])
+                hist[sample][tree_name][reference.index('1l')] += len(met[one_l])
+                hist[sample][tree_name][reference.index('1_el')] += len(met[one_el])
+                hist[sample][tree_name][reference.index('1_mu')] += len(met[one_mu])
+                hist[sample][tree_name][reference.index('1l_0sb')] += len(met[one_0sb])
+                hist[sample][tree_name][reference.index('1l_ge1st')] += len(met[one_l_greateq_1st])
+                hist[sample][tree_name][reference.index('1_el_ge1st')] += len(met[one_el_greateq_1st])
+                hist[sample][tree_name][reference.index('1_mu_ge1st')] += len(met[one_mu_greateq_1st])
+                hist[sample][tree_name][reference.index('1l_1sb')] += len(met[one_1sb])
+                hist[sample][tree_name][reference.index('1l_ge1sv')] += len(met[one_ge1sv])
+                hist[sample][tree_name][reference.index('1l_0sj')] += len(met[one_0sj])
+                hist[sample][tree_name][reference.index('1l_ge1sj')] += len(met[one_ge1sj])
+                hist[sample][tree_name][reference.index('1l_0st')] += len(met[one_l_0st])
+                
+                # isr-style regions
+                hist[sample][tree_name][reference.index('total')] += len(met)
+                hist[sample][tree_name][reference.index('2l_0isrb')] += len(met[two_l_0isrb])
+                hist[sample][tree_name][reference.index('1l_0isrb')] += len(met[one_l_0isrb])
+                hist[sample][tree_name][reference.index('1_el_0isrb')] += len(met[one_el_0isrb])
+                hist[sample][tree_name][reference.index('1_mu_0isrb')] += len(met[one_mu_0isrb])
+                hist[sample][tree_name][reference.index('1l_ge1isrb')] += len(met[one_l_greateq_1isrb])
+                hist[sample][tree_name][reference.index('1l_ge1isrt')] += len(met[one_l_greateq_1isrt])
+                hist[sample][tree_name][reference.index('1l_1isrb')] += len(met[one_l_1isrb])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1sj_mscut1')] += len(met[one_l_0isrb_ge1sj_mscut1])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1sj_mscut2')] += len(met[one_l_0isrb_ge1sj_mscut2])
+                hist[sample][tree_name][reference.index('1_el_0isrb_ge1sj')] += len(met[one_el_0isrb_ge1sj])
+                hist[sample][tree_name][reference.index('1_mu_0isrb_ge1sj')] += len(met[one_mu_0isrb_ge1sj])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1sj')] += len(met[one_l_0isrb_ge1sj])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st_mscut1')] += len(met[one_l_0isrb_ge1st_mscut1])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st_mscut2')] += len(met[one_l_0isrb_ge1st_mscut2])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st_mscut3')] += len(met[one_l_0isrb_ge1st_mscut3])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st')] += len(met[one_l_0isrb_ge1st])
+                hist[sample][tree_name][reference.index('1_el_0isrb_ge1st')] += len(met[one_el_0isrb_ge1st])
+                hist[sample][tree_name][reference.index('1_mu_0isrb_ge1st')] += len(met[one_mu_0isrb_ge1st])
+
+                # weighted entries
+                # s-style regions
+                hist[sample][tree_name][reference.index('total_w')] += np.sum(weight) 
+                hist[sample][tree_name][reference.index('2l_w')] += np.sum(weight[two_l])
+                hist[sample][tree_name][reference.index('1l_w')] += np.sum(weight[one_l])
+                hist[sample][tree_name][reference.index('1_el_w')] += np.sum(weight[one_el])
+                hist[sample][tree_name][reference.index('1_mu_w')] += np.sum(weight[one_mu])
+                hist[sample][tree_name][reference.index('1l_0sb_w')] += np.sum(weight[one_0sb])
+                hist[sample][tree_name][reference.index('1l_ge1st_w')] += np.sum(weight[one_l_greateq_1st])
+                hist[sample][tree_name][reference.index('1_el_ge1st_w')] += np.sum(weight[one_el_greateq_1st])
+                hist[sample][tree_name][reference.index('1_mu_ge1st_w')] += np.sum(weight[one_mu_greateq_1st])
+                hist[sample][tree_name][reference.index('1l_1sb_w')] += np.sum(weight[one_1sb])
+                hist[sample][tree_name][reference.index('1l_ge1sv_w')] += np.sum(weight[one_ge1sv])
+                hist[sample][tree_name][reference.index('1l_0sj_w')] += np.sum(weight[one_0sj])
+                hist[sample][tree_name][reference.index('1l_ge1sj_w')] += np.sum(weight[one_ge1sj])
+                hist[sample][tree_name][reference.index('1l_0st_w')] += np.sum(weight[one_l_0st])
+               
+                # isr-style regions 
+                hist[sample][tree_name][reference.index('total_w')] += np.sum(weight) 
+                hist[sample][tree_name][reference.index('2l_0isrb_w')] += np.sum(weight[two_l_0isrb])
+                hist[sample][tree_name][reference.index('1l_0isrb_w')] += np.sum(weight[one_l_0isrb])
+                hist[sample][tree_name][reference.index('1_el_0isrb_w')] += np.sum(weight[one_el_0isrb])
+                hist[sample][tree_name][reference.index('1_mu_0isrb_w')] += np.sum(weight[one_mu_0isrb])
+                hist[sample][tree_name][reference.index('1l_ge1isrb_w')] += np.sum(weight[one_l_greateq_1isrb])
+                hist[sample][tree_name][reference.index('1l_ge1isrt_w')] += np.sum(weight[one_l_greateq_1isrt])
+                hist[sample][tree_name][reference.index('1l_1isrb_w')] += np.sum(weight[one_l_1isrb])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1sj_mscut1_w')] += np.sum(weight[one_l_0isrb_ge1sj_mscut1])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1sj_mscut2_w')] += np.sum(weight[one_l_0isrb_ge1sj_mscut2])
+                hist[sample][tree_name][reference.index('1_el_0isrb_ge1sj_w')] += np.sum(weight[one_el_0isrb_ge1sj])
+                hist[sample][tree_name][reference.index('1_mu_0isrb_ge1sj_w')] += np.sum(weight[one_mu_0isrb_ge1sj])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1sj_w')] += np.sum(weight[one_l_0isrb_ge1sj])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st_mscut1_w')] += np.sum(weight[one_l_0isrb_ge1st_mscut1])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st_mscut2_w')] += np.sum(weight[one_l_0isrb_ge1st_mscut2])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st_mscut3_w')] += np.sum(weight[one_l_0isrb_ge1st_mscut3])
+                hist[sample][tree_name][reference.index('1l_0isrb_ge1st_w')] += np.sum(weight[one_l_0isrb_ge1st])
+                hist[sample][tree_name][reference.index('1_el_0isrb_ge1st_w')] += np.sum(weight[one_el_0isrb_ge1st])
+                hist[sample][tree_name][reference.index('1_mu_0isrb_ge1st_w')] += np.sum(weight[one_mu_0isrb_ge1st])
+
+                print 'finished filling'
+    return hist, reference
+
+
+             
+
+if __name__ == "__main__":
+
+    samples = { 
+#    signals = {
+#    'SMS-T2bW_dM' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2bW_X05_dM-10to80_genHT-160_genMET-80_mWMin-0p1_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#], 
+#    'SMS-T2bW' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2bW_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-TChiWH' : [ 
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-TChiWH_WToLNu_HToBB_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+    'SMS-T2cc' : [
+                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2cc_genHT-160_genMET-80_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+], 
+#    'SMS-T2cc_175_95' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2cc_genMET-80_mStop-175_mLSP-95_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#], 
+#    'SMS-T2bb' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2bb_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#], 
+#    'SMS-T2tt_dM' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_dM-10to80_2Lfilter_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#], 
+#    'SMS-T2tt_150to250' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_mStop-150to250_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2tt_1200_100' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_mStop-1200_mLSP-100_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2tt_650_350' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_mStop-650_mLSP-350_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2tt_850_100' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_mStop-850_mLSP-100_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2tt_250to350' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_mStop-250to350_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2tt_350to400' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_mStop-350to400_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2tt_400to1200' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2tt_mStop-400to1200_TuneCP2_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2-4bd_420' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_10Sep19/Fall17_94X_SMS_I/SMS-T2-4bd_genMET-80_mStop-500_mLSP-420_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#],
+#    'SMS-T2-4bd_490' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_10Sep19/Fall17_94X_SMS_I/SMS-T2-4bd_genMET-80_mStop-500_mLSP-490_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#],
+#    'SMS-T2-4bd_420' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/SMS-T2-4bd_genMET-80_mStop-500_mLSP-420_TuneCP5_13TeV-madgraphMLM-pythia8_',
+#],
+#    'SMS-T2-4bd_490' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/SMS-T2-4bd_genMET-80_mStop-500_mLSP-490_TuneCP5_13TeV-madgraphMLM-pythia8_',
+#],
+#    'SMS-T2-4bd_490' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2-4bd_genMET-80_mStop-500_mLSP-490_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2-4bd_420' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X_SMS/SMS-T2-4bd_genMET-80_mStop-500_mLSP-420_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'SMS-T2-4bd_490' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_10Sep19/Fall17_94X_SMS_IV/SMS-T2-4bd_genMET-80_mStop-500_mLSP-490_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#],
+#    'SMS-T2-4bd_420' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_tmp/Fall17_94X_SMS_III/SMS-T2-4bd_genMET-80_mStop-500_mLSP-420_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#],
+#    'SMS-T2-4bd_490' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/SMS-T2-4bd_genMET-80_mStop-500_mLSP-490_TuneCP5_13TeV-madgraphMLM-pythia8_v2',
+#],
+#    'TTJets_2017' : [
+#                     '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_27Sep19',
+#],
+#    'TTJets_2017' : [
+#                     '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X/TTJets_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root'
+#],
+#    'ST_2017' : [
+              #'/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/',
+#              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/ST_t-channel_antitop_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8_Fall17_94X',
+#              '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/ST_t-channel_antitop_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8_Fall17_94X'
+#              ],
+#    'WJets_2017_new' : [
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X/WJetsToLNu_HT-100To200_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X/WJetsToLNu_HT-200To400_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X/WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X/WJetsToLNu_HT-600To800_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X/WJetsToLNu_HT-1200To2500_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#                    '/home/t3-ku/crogan/NTUPLES/NANO/Fall17_94X/WJetsToLNu_HT-2500ToInf_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X.root',
+#],
+#    'WJets_2017' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_27Sep19/WJetsToLNu_HT-100To200_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_27Sep19/WJetsToLNu_HT-200To400_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_27Sep19/WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_27Sep19/WJetsToLNu_HT-600To800_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_27Sep19/WJetsToLNu_HT-1200To2500_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_27Sep19/WJetsToLNu_HT-2500ToInf_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#],
+#    'DY_M50_2017' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-70to100_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-100to200_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-200to400_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-400to600_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-600to800_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-800to1200_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-1200to2500_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/DYJetsToLL_M-50_HT-2500toInf_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17_94X',
+#],
+#    'WW_2017' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/WWTo2L2Nu_NNPDF31_TuneCP5_13TeV-powheg-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/WWTo4Q_NNPDF31_TuneCP5_13TeV-powheg-pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/WWToLNuQQ_NNPDF31_TuneCP5_13TeV-powheg-pythia8_Fall17_94X',
+#],
+#    'ZZ_2017' : [
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/ZZTo2L2Nu_13TeV_powheg_pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/ZZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/ZZTo2Q2Nu_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_Fall17_94X',
+#                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples_NANO/ZZTo4L_13TeV_powheg_pythia8_Fall17_94X',
+#]
+
+
+                  }
+    variables = ['MET', 'PT_lep', 'Charge_lep', 'ID_lep', 'PDGID_lep', 'index_lep_ISR', 'index_lep_S', 'PT_SV', 'index_SV_ISR', 'index_SV_S', 'RISR', 'PTISR', 'MiniIso_lep','MS', 'weight', 'Njet_ISR', 'Njet_S', "Nbjet_ISR", "Nbjet_S", "NSV_ISR", 'NSV_S']
+
+    start_b = time.time()    
+    sample_list = process_the_samples(samples, None, ['KUAnalysis'])
+
+    #sample_arrays, reference_array = make_tables(sample_list, variables, None)
+    #np.save('sample_array_out.npy', sample_arrays)
+    #np.save('sample_w_array_out.npy', sample_w_arrays)
+    ordered_signal_list = get_ordered_list_of_masses(sample_list)
+    make_table_of_masses(ordered_signal_list)
+    #write_table(sample_arrays, reference_array, './output_emu_medium_regions_27Sep_w.txt')  
+    stop_b = time.time()
+
+    print "total: ", stop_b - start_b
+ 
+    print 'finished writing'

@@ -34,29 +34,14 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
             hist[sample][tree_name] = OrderedDict()
             counts[sample][tree_name] = OrderedDict()
             # Reserve histograms
-
             hist[sample][tree_name]['MET'] = rt.TH1D('MET_'+sample+'_'+tree_name, 'E_{T}^{miss} [GeV]', 500, 0, 1000)
             hist[sample][tree_name]['S_Flavor_jet'] = rt.TH1D('S_Flavor_jet_'+sample+'_'+tree_name, 'Flavor S jets', 20, 0, 20)
             hist[sample][tree_name]['ISR_Flavor_jet'] = rt.TH1D('ISR_Flavor_jet_'+sample+'_'+tree_name, 'Flavor ISR jets', 20, 0, 20)
             hist[sample][tree_name]['S_Flavor_lep'] = rt.TH1D('S_Flavor_lep_'+sample+'_'+tree_name, 'Flavor S leps', 20, 0, 20)
             hist[sample][tree_name]['ISR_Flavor_lep'] = rt.TH1D('ISR_Flavor_lep_'+sample+'_'+tree_name, 'Flavor ISR leps', 20, 0, 20)
-i
-            hist[sample][tree_name]['Charge'] = rt.TH1D('Charge_'+sample+'_'+tree_name, 'lep Charge', 3, -1, 2)
-            hist[sample][tree_name]['Lep_to_Lep'] = rt.TH2D('Lep_to_Lep_'+sample+'_'+tree_name, '2leps to 2 opp leps', 2, 0, 2, 2, 0, 2)
 
-            hist[sample][tree_name]['N_PT_medium_jet'] = rt.TH2D('N_PT_medium_jet_'+sample+'_'+tree_name, 'N pt leading medium b jets', 20, 0, 20, 500, 0, 1000)
-            hist[sample][tree_name]['N_PT_tight_jet'] = rt.TH2D('N_PT_tight_jet_'+sample+'_'+tree_name, 'N pt leading tight b jets', 20, 0, 20, 500, 0, 1000)
-            hist[sample][tree_name]['N_PT_loose_jet'] = rt.TH2D('N_PT_loose_jet_'+sample+'_'+tree_name, 'N pt leading loose b jets', 20, 0, 20, 500, 0, 1000)
-            hist[sample][tree_name]['N_PT_lep'] = rt.TH2D('N_PT_lep_'+sample+'_'+tree_name, 'N pt leptons', 20, 0, 20, 500, 0, 1000)
-            hist[sample][tree_name]['PT_lep'] = rt.TH1D('PT_lep_'+sample+'_'+tree_name, 'lep p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['PT_s_lep'] = rt.TH1D('PT_s_lep_'+sample+'_'+tree_name, 's lep p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['PT_isr_lep'] = rt.TH1D('PT_isr_lep_'+sample+'_'+tree_name, 'isr lep p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['PT_jet'] = rt.TH1D('PT_jet_'+sample+'_'+tree_name, 'jet p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['PT_s_jet'] = rt.TH1D('PT_jet_'+sample+'_'+tree_name, 'jet p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['PT_isr_jet'] = rt.TH1D('PT_jet_'+sample+'_'+tree_name, 'jet p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['loose_PT_jet'] = rt.TH1D('loose_PT_jet_'+sample+'_'+tree_name, 'jet p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['medium_PT_jet'] = rt.TH1D('medium_PT_jet_'+sample+'_'+tree_name, 'jet p_{T} [GeV]', 500, 0, 1000)
-            hist[sample][tree_name]['tight_PT_jet'] = rt.TH1D('tight_PT_jet_'+sample+'_'+tree_name, 'jet p_{T} [GeV]', 500, 0, 1000)
+            hist[sample][tree_name]['Lep_to_Charge'] = rt.TH2D('Lep_to_Charge_'+sample+'_'+tree_name, 'lep Flavor to Charge', 20, 0, 20, 5, -2, 2)
+            hist[sample][tree_name]['Lep_to_Lep'] = rt.TH2D('Lep_to_Lep_'+sample+'_'+tree_name, '2leps to 2 opp leps', 2, 0, 2, 2, 0, 2)
 
             hist[sample][tree_name]['RISR'] = rt.TH1D('risr_'+sample+'_'+tree_name, 'RISR', 500, 0, 2)
             hist[sample][tree_name]['PTISR'] = rt.TH1D('ptisr_'+sample+'_'+tree_name, 'p_{T} ISR [GeV]', 500, 0, 1000)
@@ -110,7 +95,7 @@ i
         for ifile, in_file in enumerate(list_of_files_[sample]['files']):
             sample_array = get_tree_info_singular(sample, in_file, list_of_files_[sample]['trees'], variable_list_, cuts_to_apply_)
             for tree_name in sample_array[sample]:
-                print '\nGetting Histograms for:', sample, tree_name
+                print '\nGetting Histograms for:', sample, tree_name, in_file
                 print 'file: ', ifile+1, ' / ', len(list_of_files_[sample]['files'])
 
                 pt_jet = np.array(sample_array[sample][tree_name]['PT_jet'])
@@ -147,7 +132,6 @@ i
                 ch_lep = np.array([np.pad(leps, (0, max_n_leps - len(leps)), 'constant', constant_values=0) for leps in ch_lep]) 
                 pdgid_lep = np.array([np.pad(leps, (0, max_n_leps - len(leps)), 'constant', constant_values=np.nan) for leps in pdgid_lep]) 
                 only_2_leps = np.array([True if lep == 2 else False for lep in len_lep])
-                only_1_leps = np.array([True if lep == 1 else False for lep in len_lep])
                 only_2_opp_leps = np.array([True if lep == 2 and len(charge[charge>0])>0 and len(charge[charge<0])>0 else False for lep, charge in zip(only_2_leps, ch_lep)])
 
                 risr = np.array([entry[:3] for entry in base_risr])
@@ -229,10 +213,6 @@ i
                 medium_pt_jet = np.array([jet[mask] for jet, mask in zip(pt_jet, medium_mask)])
                 tight_pt_jet = np.array([jet[mask] for jet, mask in zip(pt_jet, tight_mask)])
 
-                loose_jet_weight = np.array([jet[mask] for jet, mask in zip(jet_weight, loose_mask)])
-                medium_jet_weight = np.array([jet[mask] for jet, mask in zip(jet_weight, medium_mask)])
-                tight_jet_weight = np.array([jet[mask] for jet, mask in zip(jet_weight, tight_mask)])
-
                 print '-> S jet pt + padding'
                 s_len_jet = np.array([len(jets) for jets in pt_s_jet])
                 max_n_s_jets = np.amax(s_len_jet)
@@ -305,19 +285,15 @@ i
 #                medium_isr_jet_weight = np.array(w[mask] for w, mask in zip(isr_jet_weight, medium_isr_mask)])
 #                tight_isr_jet_weight = np.array(w[mask] for w, mask in zip(isr_jet_weight, tight_isr_mask)])
 
-                risr_0p8 = risr > 0.8
+
                 print '-> Overall selection mask'
-                evt_selection_mask = np.all([only_2_leps, is_medium, risr_0p8], axis=0)
-                #evt_selection_mask = np.array([True if lep_mask else False for lep_mask in only_1_leps])
+                evt_selection_mask = np.array([True if np.all([lep_mask, b_mask]) else False for lep_mask, b_mask in zip(only_2_leps, is_medium)])
  
                 risr = risr[evt_selection_mask]
                 ptisr = ptisr[evt_selection_mask]
                 ptcm = ptcm[evt_selection_mask]
                 met = met[evt_selection_mask]
 
-                pt_lep = pt_lep[evt_selection_mask]
-                pt_s_lep = pt_s_lep[evt_selection_mask]
-                pt_isr_lep = pt_isr_lep[evt_selection_mask]
                 lep_weight = lep_weight[evt_selection_mask]
                 pdgid_lep = pdgid_lep[evt_selection_mask]
                 ch_lep = ch_lep[evt_selection_mask]
@@ -345,13 +321,9 @@ i
                 n_isr_lep = n_isr_lep[evt_selection_mask]
                  
                 len_jet = len_jet[evt_selection_mask]
-                pt_jet = pt_jet[evt_selection_mask]
-                jet_weight = jet_weight[evt_selection_mask]
                 len_lep = len_lep[evt_selection_mask]
                 only_lep_weight = weight
                 weight = weight[evt_selection_mask]
-                pt_s_jet = pt_s_jet[evt_selection_mask]
-                pt_isr_jet = pt_isr_jet[evt_selection_mask]
                 s_jet_weight = s_jet_weight[evt_selection_mask]
                 isr_jet_weight = isr_jet_weight[evt_selection_mask]
                 s_lep_weight = s_lep_weight[evt_selection_mask]
@@ -392,6 +364,7 @@ i
                 if not np.any(evt_selection_mask): 
                     print 'finished filling'
                     continue
+
                 rnp.fill_hist(hist[sample][tree_name]['MET'], met, weight)
                 rnp.fill_hist(hist[sample][tree_name]['S_Flavor_jet'], flavor_s_jet, s_jet_weight)
                 rnp.fill_hist(hist[sample][tree_name]['ISR_Flavor_jet'], flavor_isr_jet, isr_jet_weight)
@@ -399,18 +372,8 @@ i
                 rnp.fill_hist(hist[sample][tree_name]['S_Flavor_lep'], pdgid_s_lep, s_lep_weight)
                 rnp.fill_hist(hist[sample][tree_name]['ISR_Flavor_lep'], pdgid_isr_lep, isr_lep_weight)
 
-                rnp.fill_hist(hist[sample][tree_name]['Charge'], ch_lep, lep_weight)
+                rnp.fill_hist(hist[sample][tree_name]['Lep_to_Charge'], np.swapaxes([pdgid_lep, ch_lep],0,1), lep_weight)
                 rnp.fill_hist(hist[sample][tree_name]['Lep_to_Lep'], np.swapaxes([only_2_leps, only_2_opp_leps],0,1), only_lep_weight)
-
-                rnp.fill_hist(hist[sample][tree_name]['PT_lep'], pt_lep, lep_weight)
-                rnp.fill_hist(hist[sample][tree_name]['PT_s_lep'], pt_s_lep, s_lep_weight)
-                rnp.fill_hist(hist[sample][tree_name]['PT_isr_lep'], pt_isr_lep, isr_lep_weight)
-                rnp.fill_hist(hist[sample][tree_name]['PT_jet'], np.concatenate(pt_jet), np.concatenate(jet_weight))
-                rnp.fill_hist(hist[sample][tree_name]['PT_s_jet'], (pt_s_jet), (s_jet_weight))
-                rnp.fill_hist(hist[sample][tree_name]['PT_isr_jet'], (pt_isr_jet), (isr_jet_weight))
-                rnp.fill_hist(hist[sample][tree_name]['loose_PT_jet'], np.concatenate(loose_pt_jet), np.concatenate(loose_jet_weight))
-                rnp.fill_hist(hist[sample][tree_name]['medium_PT_jet'], np.concatenate(medium_pt_jet), np.concatenate(medium_jet_weight))
-                rnp.fill_hist(hist[sample][tree_name]['tight_PT_jet'], np.concatenate(tight_pt_jet), np.concatenate(tight_jet_weight))
 
                 rnp.fill_hist(hist[sample][tree_name]['RISR'], risr, weight)
                 rnp.fill_hist(hist[sample][tree_name]['PTISR'], ptisr, weight)
@@ -485,9 +448,6 @@ if __name__ == "__main__":
               '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ST_2017/ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_Fall17',
               '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/ST_2017/ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_Fall17',
            ],
-    'WJets_2017' : [
-                    '/home/t3-ku/erichjs/work/Ewkinos/reducer/CMSSW_10_1_4_patch1/src/KUEWKinoAnalysis_dev_v2/output_samples/Wjets_2017/WJetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8_Fall17',
-],
                   }
     variables = ['MET', 'PT_jet', 'index_jet_ISR', 'index_jet_S', 'Btag_jet', 'Flavor_jet', 'PT_lep', 'Charge_lep', 'ID_lep', 'PDGID_lep', 'index_lep_ISR', 'index_lep_S', 'RISR', 'PTISR', 'PTCM', 'dphiCMI', 'weight']
 
@@ -495,13 +455,13 @@ if __name__ == "__main__":
     background_list = process_the_samples(backgrounds, None, None)
     hist_background = get_histograms(background_list, variables, None)
 
-    write_hists_to_file(hist_background, './output_background_2l1b_cat3_risr_0p8_hists.root') 
+    write_hists_to_file(hist_background, './output_background_2l1b_cat3_hists.root') 
     stop_b = time.time()
 
     signal_list = process_the_samples(signals, None, None)
     hist_signal = get_histograms(signal_list, variables, None)
 
-    write_hists_to_file(hist_signal, './output_signal_2l1b_cat3_risr_0p8_hists.root')  
+    write_hists_to_file(hist_signal, './output_signal_2l1b_cat3_hists.root')  
     stop_s = time.time()
 
     print "background: ", stop_b - start_b

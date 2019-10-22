@@ -29,7 +29,7 @@ def get_tree_info_singular(sample_, file_name_, tree_names_, variable_list_, cut
         if bool(tmp_t) and tmp_t.InheritsFrom(rt.TTree.Class()): 
             tmp_array[sample_][tree] = rnp.tree2array(tmp_t, branches=variable_list_, selection=cuts_to_apply_)
         else:
-            print 'tree: ' + tree + ' is not a tree, skipping'
+            print('tree: ' + tree + ' is not a tree, skipping')
     
     return tmp_array
 
@@ -45,31 +45,31 @@ def get_tree_info_plural(file_list_, tree_list_, variable_list_, cuts_to_apply_=
     n_files = len(file_list_)
 
     for ifile, file_name in enumerate(file_list_):
-        print 'reading file:', ifile+1, '/', n_files
+        print('reading file:', ifile+1, '/', n_files)
 
         tmp_f = rt.TFile(file_name, 'r')
-        print file_name
+        print(file_name)
         for tree_name in tree_list_:
             tmp_t = tmp_f.Get(tree_name)
             if bool(tmp_t) and tmp_t.InheritsFrom(rt.TTree.Class()): 
                 tmp_array = rnp.tree2array(tmp_t, branches=variable_list_, selection=cuts_to_apply_)
             else:
-                print 'tree: ' + tree_name + ' is not a tree, skipping'
+                print('tree: ' + tree_name + ' is not a tree, skipping')
 
             event_dict[tree_name].append(tmp_array)
-    print 'done reading'
-    print 'restructuring arrays...'
+    print('done reading')
+    print('restructuring arrays...')
 
     
     for tree in event_dict:
         event_dict[tree] = np.concatenate([struc for struc in event_dict[tree]])
 
-    print 'done restructuring'
+    print('done restructuring')
     return event_dict 
 
 
 def reduce_and_condense(file_list_of_file_lists, variable_list):
-    print 'for posterity'
+    print('for posterity')
 
     tree_chain = rt.TChain('deepntuplizer/tree')
     for file_list in file_list_of_file_lists:
@@ -139,13 +139,18 @@ def process_the_samples(input_sample_list_, truncate_file_ = None, tree_in_dir_ 
     list_of_files = OrderedDict()
 
     for sample, list_of_folders in input_sample_list_.items():
-        print sample
+        print(sample)
         file_list = []
         for folder in list_of_folders:
-            print '->', folder
-            file_list_tmp = [os.path.join(folder, f) for f in os.listdir(folder) if (os.path.isfile(os.path.join(folder, f)) and ('.root' in f))]
-            file_list.append(file_list_tmp)
-        file_list = np.concatenate(file_list)
+            print('->', folder)
+            if '.root' in folder:
+                file_list.append(folder)
+            else:
+                file_list_tmp = [os.path.join(folder, f) for f in os.listdir(folder) if (os.path.isfile(os.path.join(folder, f)) and ('.root' in f))]
+                file_list.append(file_list_tmp)
+        need_to_concat = [True if type(x) == list else False for x in file_list]
+        if np.any(need_to_concat):
+            file_list = np.concatenate(file_list)
         # Get file structure, in case there is a grid of mass points
         f_struct_tmp = rt.TFile(file_list[0], 'r')
         tree_list = []
@@ -156,14 +161,15 @@ def process_the_samples(input_sample_list_, truncate_file_ = None, tree_in_dir_ 
 
         if truncate_file_ is not None:
             file_list = file_list[:truncate_file_]
-        if 'SMS' in sample:
-            trees_to_keep = ['500_100', '500_325', '775_600']
-            tree_name_mass = [(int(mass.split('_')[0]), int(mass.split('_')[1])) for mass in tree_list]
-            tree_name_mass.sort(key=lambda x: int(x[0]))
-            if trees_to_keep is not None:
-                tree_list = trees_to_keep
-            else:
-                tree_list = [str(mom) + '_' + str(child) for mom, child in tree_name_mass]
+        #if 'SMS' in sample:
+        #    #trees_to_keep = ['500_100', '500_325', '775_600']
+        #    #trees_to_keep = []
+        #    tree_name_mass = [(int(mass.split('_')[1]), int(mass.split('_')[2])) for mass in tree_list]
+        #    tree_name_mass.sort(key=lambda x: int(x[0]))
+        #    #if trees_to_keep is not None:
+        #    #    tree_list = trees_to_keep
+        #    #else:
+        #    tree_list = ['SMS_'+str(mom) + '_' + str(child) for mom, child in tree_name_mass]
 
         f_struct_tmp.Close()
         list_of_files[sample] = OrderedDict([('files', file_list), ('trees', tree_list)])
@@ -174,7 +180,7 @@ def process_the_samples(input_sample_list_, truncate_file_ = None, tree_in_dir_ 
 def write_hists_to_file(hists_, out_file_name_):
 
     out_file = rt.TFile.Open(out_file_name_, "recreate")
-    print 'writing histograms to: ', out_file.GetName()
+    print('writing histograms to: ', out_file.GetName())
     out_file.cd()
     for sample in hists_:
         sample_dir = out_file.mkdir(sample)
@@ -185,12 +191,12 @@ def write_hists_to_file(hists_, out_file_name_):
             for hist in hists_[sample][tree].values():
                 hist.Write()
     out_file.Close()
-    print 'finished writing'
+    print('finished writing')
 
 
 def write_arrays_to_trees(arrays_, out_file_name_):
     out_file = rt.TFile.Open(out_file_name_, "recreate")
-    print 'converting arrays and writing to: ', out_file.GetName()
+    print('converting arrays and writing to: ', out_file.GetName())
     for sample in arrays_:
         out_file.cd()
         sample_dir = out_file.mkdir(sample)
@@ -199,7 +205,8 @@ def write_arrays_to_trees(arrays_, out_file_name_):
             tmp_tree = rnp.array2tree(arrays_[sample][tree])
             tmp_tree.Write()
     out_file.Close()
-    print 'finished writing'
+    print('finished writing')
+
 
 def write_arrays_to_file(arrays_, out_file_name_):
     """
@@ -209,4 +216,48 @@ def write_arrays_to_file(arrays_, out_file_name_):
         np.save(out_file_name_, arrays_)
     else:
         raise ValueError(out_file_name_.split('.')[-1] + ' is the wrong file type, please use npy')
+
+
+def evaluateZbi(Nsig, Nbkg,sys):
+    Nobs = rt.Double(Nsig+Nbkg)
+    tau = rt.Double(1./Nbkg/(sys*sys/10000.))
+    aux = rt.Double(Nbkg*tau)
+    Pvalue = rt.TMath.BetaIncomplete(1./(1.+tau),Nobs,aux+1.)
+    return rt.TMath.Sqrt(2.)*rt.TMath.ErfcInverse(Pvalue*2)
+
+
+def write_table(table_array_, table_w_array_, table_name_):
+
+    out_lines = []
+    out_w_lines = []
+    for factor, sample in enumerate(table_array_):
+        if factor == 0:
+            out_lines.append('{:^30}'.format(' '))
+        for tree in table_array_[sample]:
+            out_lines.append('{:<15} {:<15}'.format(sample, tree))
+            for icol, name_value in enumerate(table_array_[sample][tree].items()):
+                if factor == 0:
+                    out_lines[factor] += '{:^30}'.format(name_value[0])
+                out_lines[factor+1] += '{:^30.6f}'.format(name_value[1])
+            out_lines[factor+1] += '\n'
+    out_lines[0] += '\n'
+
+    for factor, sample in enumerate(table_w_array_):
+        if factor == 0:
+            out_w_lines.append('{:^30}'.format(' '))
+        for tree in table_w_array_[sample]:
+            out_w_lines.append('{:<15} {:<15}'.format(sample, tree))
+            for icol, name_value in enumerate(table_w_array_[sample][tree].items()):
+                if factor == 0:
+                    out_w_lines[factor] += '{:^30}'.format(name_value[0])
+                out_w_lines[factor+1] += '{:^30.6f}'.format(name_value[1])
+            out_w_lines[factor+1] += '\n'
+    out_w_lines[0] += '\n'
+
+    with open(table_name_, 'w') as t:
+        t.writelines(out_lines)
+        t.write('\n')
+        t.writelines(out_w_lines)
+        t.close()
+
     

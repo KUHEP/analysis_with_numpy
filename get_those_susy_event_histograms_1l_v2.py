@@ -40,7 +40,7 @@ def get_histograms(list_of_files_, variable_list_, cuts_to_apply_=None):
             hist[sample][tree_name]['ISR_Flavor_jet'] = rt.TH1D('ISR_Flavor_jet_'+sample+'_'+tree_name, 'Flavor ISR jets', 20, 0, 20)
             hist[sample][tree_name]['S_Flavor_lep'] = rt.TH1D('S_Flavor_lep_'+sample+'_'+tree_name, 'Flavor S leps', 20, 0, 20)
             hist[sample][tree_name]['ISR_Flavor_lep'] = rt.TH1D('ISR_Flavor_lep_'+sample+'_'+tree_name, 'Flavor ISR leps', 20, 0, 20)
-i
+
             hist[sample][tree_name]['Charge'] = rt.TH1D('Charge_'+sample+'_'+tree_name, 'lep Charge', 3, -1, 2)
             hist[sample][tree_name]['Lep_to_Lep'] = rt.TH2D('Lep_to_Lep_'+sample+'_'+tree_name, '2leps to 2 opp leps', 2, 0, 2, 2, 0, 2)
 
@@ -307,8 +307,8 @@ i
 
                 risr_0p8 = risr > 0.8
                 print '-> Overall selection mask'
-                evt_selection_mask = np.all([only_2_leps, is_medium, risr_0p8], axis=0)
-                #evt_selection_mask = np.array([True if lep_mask else False for lep_mask in only_1_leps])
+                #evt_selection_mask = np.array([True if np.all([lep_mask, b_mask]) else False for lep_mask, b_mask in zip(only_1_leps, is_medium)])
+                evt_selection_mask = np.all([only_1_leps, risr_0p8], axis=0)
  
                 risr = risr[evt_selection_mask]
                 ptisr = ptisr[evt_selection_mask]
@@ -495,13 +495,13 @@ if __name__ == "__main__":
     background_list = process_the_samples(backgrounds, None, None)
     hist_background = get_histograms(background_list, variables, None)
 
-    write_hists_to_file(hist_background, './output_background_2l1b_cat3_risr_0p8_hists.root') 
+    write_hists_to_file(hist_background, './output_background_1l_cat3_risr_0p8_hists.root') 
     stop_b = time.time()
 
     signal_list = process_the_samples(signals, None, None)
     hist_signal = get_histograms(signal_list, variables, None)
 
-    write_hists_to_file(hist_signal, './output_signal_2l1b_cat3_risr_0p8_hists.root')  
+    write_hists_to_file(hist_signal, './output_signal_1l_cat3_risr_0p8_hists.root')  
     stop_s = time.time()
 
     print "background: ", stop_b - start_b
